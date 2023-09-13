@@ -1,0 +1,9 @@
+
+pytz
+Flask
+pandas
+vectorbt
+psycopg2
+sqlalchemy
+python-dotenv
+python-binance
