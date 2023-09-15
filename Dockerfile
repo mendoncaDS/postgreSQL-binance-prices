@@ -10,7 +10,6 @@ COPY requirements.txt .
 # Activate the environment and install dependencies using pip
 RUN /bin/bash -c "pip install -r requirements.txt"
 
-COPY .env .
 COPY update_database.py .
 
 EXPOSE 8080

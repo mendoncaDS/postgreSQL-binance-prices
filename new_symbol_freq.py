@@ -8,8 +8,8 @@ from sqlalchemy import create_engine, text
 
 
 load_dotenv()
-database_password = os.environ.get('database_password')
-server_address = os.environ.get('server_address')
+database_password = os.environ.get('password')
+server_address = os.environ.get('serverip')
 connection_string = f"postgresql://postgres:{database_password}@{server_address}:5432/postgres"
 engine = create_engine(connection_string,echo=True)
 
