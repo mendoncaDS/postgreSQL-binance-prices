@@ -2,6 +2,7 @@
 import os
 import pytz
 import logging
+import datetime
 import threading
 
 import pandas as pd
@@ -9,6 +10,7 @@ import vectorbt as vbt
 
 from flask import Flask
 from dotenv import load_dotenv
+from sqlalchemy import bindparam
 from sqlalchemy import create_engine, text
 
 app = Flask(__name__)
@@ -57,31 +59,35 @@ def unique_symbol_freqs():
 
 
 def update_database():
-
     all_data = []
+
+    # Get the current timestamp at the beginning of the function
+    end_timestamp = datetime.datetime.now(pytz.utc)
 
     symbol_freqs = unique_symbol_freqs()
 
+    # Fetch the last_timestamps for all symbol_freq combinations
+    sql_query = text("""
+    SELECT symbol, frequency, MAX(timestamp) as last_timestamp
+    FROM market_data
+    GROUP BY symbol, frequency;
+    """)
+
+    with engine.begin() as connection:
+        result = connection.execute(sql_query)
+        last_timestamps = {(row.symbol, row.frequency): row.last_timestamp for row in result}
+
     for symbol, freq in symbol_freqs:
         print(f"symbol: {symbol}, freq: {freq}")
-        sql_query = text("""
-        SELECT timestamp
-        FROM market_data
-        WHERE frequency = :freq AND symbol = :symbol
-        ORDER BY timestamp DESC
-        LIMIT 1;
-        """)
 
-        values = {'freq': freq, 'symbol': symbol}
-
-        with engine.begin() as connection:
-            result = connection.execute(sql_query, values)
-            last_timestamp = result.scalar()
-        last_timestamp = pytz.utc.localize(last_timestamp)
+        last_timestamp = last_timestamps.get((symbol, freq))
+        if last_timestamp:
+            last_timestamp = pytz.utc.localize(last_timestamp)
 
         downloadedData = vbt.BinanceData.download(
             symbols=symbol,
             start=last_timestamp,
+            end=end_timestamp,  # Using the end_timestamp here
             interval=freq
         ).get(["Open", "High", "Low", "Close", "Volume"])
 
@@ -99,7 +105,6 @@ def update_database():
 
     # Concatenate all the data frames
     all_data_df = pd.concat(all_data)
-
 
     with engine.begin() as connection:
         all_data_df.to_sql('market_data', connection, if_exists='append', index=True)
