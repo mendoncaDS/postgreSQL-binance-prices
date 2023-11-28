@@ -7,10 +7,10 @@ import threading
 
 import pandas as pd
 import vectorbt as vbt
+from run_bots import run_bots
 
 from flask import Flask
 from dotenv import load_dotenv
-from sqlalchemy import bindparam
 from sqlalchemy import create_engine, text
 
 app = Flask(__name__)
@@ -43,12 +43,21 @@ def main():
     logging.info(f"Connected to database.")
 
     try:
+        logging.info(f"Trying to update database...")
         update_database()
     except Exception as e:
         logging.error(f"PYTHON ERROR: {e}")
     
+    logging.info(f"Database updated.")
+
+    try:
+        logging.info(f"Trying to update bots...")
+        run_bots()
+    except Exception as e:
+        logging.error(f"PYTHON ERROR: {e}")
+    
+    logging.info(f"Bots updated.")
     logging.info(f"Task finished.")
-    #print("Task finished.")
 
 def unique_symbol_freqs():
     with engine.connect() as connection:
