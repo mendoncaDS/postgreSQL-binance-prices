@@ -4,6 +4,7 @@ Flask
 pandas
 vectorbt
 psycopg2
+pandas-ta
 sqlalchemy
 python-dotenv
 python-binance

@@ -11,6 +11,7 @@ COPY requirements.txt .
 RUN /bin/bash -c "pip install -r requirements.txt"
 
 COPY update_database.py .
+COPY run_bots.py .
 
 EXPOSE 8080
 
