@@ -10,9 +10,8 @@ import vectorbt as vbt
 
 from flask import Flask
 from dotenv import load_dotenv
+from sqlalchemy import bindparam
 from sqlalchemy import create_engine, text
-
-from run_bots import run_bots
 
 app = Flask(__name__)
 
@@ -28,9 +27,10 @@ def home():
     threading.Thread(target=run_in_background).start()
     return "Task started", 200
 
+
 def main():
     logging.info(f"-----*----------*----------*-----")
-    logging.info(f"Starting Routine.")
+    logging.info(f"Starting task.")
 
     load_dotenv()
     database_password = os.environ.get('password')
@@ -43,24 +43,12 @@ def main():
     logging.info(f"Connected to database.")
 
     try:
-        logging.info(f"Updating database...")
         update_database()
-        logging.info(f"Updated database successfully.")
-        logging.info(f"----------")
     except Exception as e:
-        logging.error(f"An error occurred while updating database: {e}")
-
-    try:
-        logging.info(f"Updating bots...")
-        run_bots()
-        logging.info(f"Updated bots successfully.")
-        logging.info(f"----------")
-    except Exception as e:
-        logging.error(f"An error occurred while updating bots: {e}")
-
-    logging.info(f"Routine Finished.")
-
-
+        logging.error(f"PYTHON ERROR: {e}")
+    
+    logging.info(f"Task finished.")
+    #print("Task finished.")
 
 def unique_symbol_freqs():
     with engine.connect() as connection:
@@ -68,6 +56,7 @@ def unique_symbol_freqs():
         result  = connection.execute(query)
         unique_combinations = result.fetchall()
     return unique_combinations
+
 
 def update_database():
     all_data = []
