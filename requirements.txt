@@ -8,3 +8,4 @@ pandas-ta
 sqlalchemy
 python-dotenv
 python-binance
+pyTelegramBotAPI

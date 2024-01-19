@@ -13,83 +13,52 @@ from flask import Flask
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-app = Flask(__name__)
-
-logging.basicConfig(level=logging.INFO)
-
-def run_in_background():
-    # This will run your main function in the background
-    main()
-
-@app.route('/')
-def home():
-    # Trigger your main task in a separate thread
-    threading.Thread(target=run_in_background).start()
-    return "Task started", 200
 
 
-def main():
-    logging.info(f"-----*----------*----------*-----")
-    logging.info(f"Starting task.")
+
+def unique_symbol_freqs(engine):
+    with engine.connect() as connection:
+        query = text(f"SELECT DISTINCT symbol FROM market_data")
+        result  = connection.execute(query)
+        unique_combinations = [row[0] for row in result.fetchall()]
+    return unique_combinations
+
+
+def update_database():
 
     load_dotenv()
     database_password = os.environ.get('password')
     server_address = os.environ.get('serverip')
     logging.info(f"Loaded dotenv values.")
-
     connection_string = f"postgresql://postgres:{database_password}@{server_address}:5432/postgres"
     global engine
     engine = create_engine(connection_string)
     logging.info(f"Connected to database.")
 
-    try:
-        logging.info(f"Trying to update database...")
-        update_database()
-    except Exception as e:
-        logging.error(f"PYTHON ERROR: {e}")
-    
-    logging.info(f"Database updated.")
-
-    try:
-        logging.info(f"Trying to update bots...")
-        run_bots()
-    except Exception as e:
-        logging.error(f"PYTHON ERROR: {e}")
-    
-    logging.info(f"Bots updated.")
-    logging.info(f"Task finished.")
-
-def unique_symbol_freqs():
-    with engine.connect() as connection:
-        query = text(f"SELECT DISTINCT symbol, frequency FROM market_data")
-        result  = connection.execute(query)
-        unique_combinations = result.fetchall()
-    return unique_combinations
-
-
-def update_database():
     all_data = []
 
     # Get the current timestamp at the beginning of the function
     end_timestamp = datetime.datetime.now(pytz.utc)
 
-    symbol_freqs = unique_symbol_freqs()
+    symbol_freqs = unique_symbol_freqs(engine)
 
     # Fetch the last_timestamps for all symbol_freq combinations
     sql_query = text("""
-    SELECT symbol, frequency, MAX(timestamp) as last_timestamp
+    SELECT symbol, MAX(timestamp) as last_timestamp
     FROM market_data
-    GROUP BY symbol, frequency;
+    GROUP BY symbol;
     """)
 
     with engine.begin() as connection:
         result = connection.execute(sql_query)
-        last_timestamps = {(row.symbol, row.frequency): row.last_timestamp for row in result}
+        last_timestamps = {row.symbol: row.last_timestamp for row in result}
+    
+    print(symbol_freqs)
 
-    for symbol, freq in symbol_freqs:
-        print(f"symbol: {symbol}, freq: {freq}")
+    for symbol in symbol_freqs:
+        print(f"symbol: {symbol}")
 
-        last_timestamp = last_timestamps.get((symbol, freq))
+        last_timestamp = last_timestamps.get((symbol))
         if last_timestamp:
             last_timestamp = pytz.utc.localize(last_timestamp)
 
@@ -97,26 +66,25 @@ def update_database():
             symbols=symbol,
             start=last_timestamp,
             end=end_timestamp,  # Using the end_timestamp here
-            interval=freq
+            interval="1m"
         ).get(["Open", "High", "Low", "Close", "Volume"])
 
         if downloadedData.shape[0] > 2:
             downloadedData = downloadedData.iloc[1:-1]
             downloadedData.columns = ['open', 'high', 'low', 'close', 'volume']
             downloadedData['symbol'] = symbol
-            downloadedData['frequency'] = freq
             downloadedData.index.name = 'timestamp'
         else:
             print("Data is up to date.")
             continue  # Skip to the next iteration
 
-        all_data.append(downloadedData)
+        #all_data.append(downloadedData)
+
+        with engine.begin() as connection:
+            downloadedData.to_sql('market_data', connection, if_exists='append', index=True)
 
     # Concatenate all the data frames
-    all_data_df = pd.concat(all_data)
+    #all_data_df = pd.concat(all_data)
 
-    with engine.begin() as connection:
-        all_data_df.to_sql('market_data', connection, if_exists='append', index=True)
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080)
+    #with engine.begin() as connection:
+        #all_data_df.to_sql('market_data', connection, if_exists='append', index=True)

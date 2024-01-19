@@ -12,7 +12,9 @@ RUN /bin/bash -c "pip install -r requirements.txt"
 
 COPY update_database.py .
 COPY run_bots.py .
+COPY ping_telegram.py .
+COPY begin.py .
 
 EXPOSE 8080
 
-ENTRYPOINT ["python", "update_database.py"]
+ENTRYPOINT ["python", "begin.py"]
